@@ -12,8 +12,10 @@ import {
 import { postJob } from '../api/api';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
 
-const PostJobScreen = ({ navigation }) => {
+const PostJobScreen = () => {
+  const navigation = useNavigation();
   const [jobData, setJobData] = useState({
     title: '',
     company: '',
@@ -36,7 +38,8 @@ const PostJobScreen = ({ navigation }) => {
         numberOfPositions: parseInt(jobData.numberOfPositions) || 1,
       });
       Alert.alert('Success', 'Job posted successfully');
-      navigation.goBack();
+      // Navigate back to Homepage and pass a parameter to trigger reload
+      navigation.navigate('Homepage', { reload: true });
     } catch (error) {
       Alert.alert('Error', 'Failed to post job');
     }

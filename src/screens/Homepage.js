@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, FlatList, View, Text, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getJobs } from '../api/api';
 import { useAppContext } from '../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,15 +39,7 @@ const Homepage = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [allJobs, setAllJobs] = useState([]);
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  useEffect(() => {
-    handleSearch();
-  }, [searchTerm]);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const jobsData = await getJobs();
@@ -58,7 +50,30 @@ const Homepage = () => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [dispatch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchJobs();
+    }, [fetchJobs])
+  );
+
+  const handleSearch = useCallback(() => {
+    if (searchTerm.trim() === '') {
+      dispatch({ type: 'SET_JOBS', payload: allJobs });
+    } else {
+      const filteredJobs = allJobs.filter(job =>
+        job.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      dispatch({ type: 'SET_JOBS', payload: filteredJobs });
+    }
+  }, [searchTerm, allJobs, dispatch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      handleSearch();
+    }, [handleSearch])
+  );
 
   const handleAvatarPress = () => {
     setShowMenu(!showMenu);
@@ -89,7 +104,7 @@ const Homepage = () => {
           style: "cancel"
         },
         {
-          text: "Yes", 
+          text: "Yes",
           onPress: async () => {
             try {
               await AsyncStorage.removeItem('userToken');
@@ -107,15 +122,9 @@ const Homepage = () => {
     );
   }, [dispatch, navigation]);
 
-  const handleSearch = () => {
-    if (searchTerm.trim() === '') {
-      dispatch({ type: 'SET_JOBS', payload: allJobs });
-    } else {
-      const filteredJobs = allJobs.filter(job =>
-        job.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      dispatch({ type: 'SET_JOBS', payload: filteredJobs });
-    }
+  const handleManageCandidates = () => {
+    setShowMenu(false);
+    navigation.navigate('ManageCandidates');
   };
 
   const renderJobItem = ({ item }) => (
@@ -145,14 +154,19 @@ const Homepage = () => {
               <MenuItemText>User Profile</MenuItemText>
             </MenuItem>
             {state.user && state.user.role === 'employer' && (
-              <MenuItem onPress={handleCompanyProfile}>
-                <MenuItemText>Company Profile</MenuItemText>
-              </MenuItem>
+              <>
+                <MenuItem onPress={handleCompanyProfile}>
+                  <MenuItemText>Company Profile</MenuItemText>
+                </MenuItem>
+                <MenuItem onPress={handleManageCandidates}>
+                  <MenuItemText>Manage Posted Jobs</MenuItemText>
+                </MenuItem>
+              </>
             )}
             {state.user && state.user.role === 'jobseeker' && (
-            <MenuItem onPress={handleApplicationStatus}>
-              <MenuItemText>Application Status</MenuItemText>
-            </MenuItem>
+              <MenuItem onPress={handleApplicationStatus}>
+                <MenuItemText>Application Status</MenuItemText>
+              </MenuItem>
             )}
             <MenuItem onPress={handleLogout}>
               <MenuItemText style={{ color: 'red' }}>Logout</MenuItemText>
@@ -186,7 +200,6 @@ const Homepage = () => {
       <SectionHeader>
         <SectionTitle>Popular jobs</SectionTitle>
       </SectionHeader>
-
       {state.isLoading ? (
         <ErrorText>Loading jobs...</ErrorText>
       ) : state.error ? (
@@ -198,26 +211,19 @@ const Homepage = () => {
           keyExtractor={(item) => item._id}
         />
       )}
-      {state.user.role === 'employer' ? (
+      {state.user && state.user.role === 'employer' && (
         <StyledButton onPress={() => navigation.navigate('PostJob')}>
           <ButtonText>Post a Job</ButtonText>
         </StyledButton>
-      ) : (
-        <StyledButton onPress={() => navigation.navigate('JobSearch', { jobType: selectedJobType })}>
-          <ButtonText>Search Jobs</ButtonText>
-        </StyledButton>
       )}
-
-      {state.user.role === 'jobseeker' ? (
-        <StyledButton onPress={() => navigation.navigate('ApplicationStatus')}>
-          <ButtonText>View Application Status</ButtonText>
-        </StyledButton>
-      ) : (
-        <StyledButton onPress={() => navigation.navigate('ManageCandidates', { jobId: 'some-job-id' })}>
-          <ButtonText>Manage Candidates</ButtonText>
-        </StyledButton>
+      
+      {state.user && state.user.role === 'jobseeker' && (
+        <>
+          <StyledButton onPress={() => navigation.navigate('JobSearch', { jobType: selectedJobType })}>
+            <ButtonText>Search Jobs</ButtonText>
+          </StyledButton>
+        </>
       )}
-
     </HomeContainer>
   );
 };

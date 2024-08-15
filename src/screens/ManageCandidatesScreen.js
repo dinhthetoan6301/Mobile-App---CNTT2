@@ -8,11 +8,16 @@ import {
   Alert,
   Modal,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getPostedJobs, updateJob, deleteJob, getCandidates, updateApplicationStatus } from '../api/api';
-import { useAppContext } from '../context/AppContext'; // Giả sử bạn có một context để lưu thông tin người dùng
+import { useAppContext } from '../context/AppContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 
 const JobItem = ({ job, onViewCandidates, onEdit, onDelete }) => (
   <View style={styles.jobItem}>
@@ -64,9 +69,23 @@ const ManageCandidatesScreen = ({ navigation }) => {
   const [candidates, setCandidates] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editJobData, setEditJobData] = useState({});
+  const [editJobData, setEditJobData] = useState({
+    title: '',
+    company: '',
+    description: '',
+    requirements: [],
+    benefits: [],
+    salary: { min: '', max: '', currency: 'USD' },
+    location: '',
+    type: '',
+    industry: '',
+    applicationDeadline: new Date(),
+    numberOfPositions: ''
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { state } = useAppContext(); // Sử dụng context để lấy thông tin người dùng
+  const { state } = useAppContext();
+  
 
   useEffect(() => {
     fetchPostedJobs();
@@ -76,7 +95,6 @@ const ManageCandidatesScreen = ({ navigation }) => {
     setLoading(true);
     try {
       const jobs = await getPostedJobs();
-      // Lọc chỉ những công việc do người dùng hiện tại đăng
       const userJobs = jobs.filter(job => job.postedBy === state.user._id);
       setPostedJobs(userJobs);
     } catch (error) {
@@ -85,6 +103,8 @@ const ManageCandidatesScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  
 
   const handleJobPress = async (job) => {
     setSelectedJob(job);
@@ -98,19 +118,53 @@ const ManageCandidatesScreen = ({ navigation }) => {
   };
 
   const handleEditJob = (job) => {
-    setEditJobData(job);
+    setEditJobData({
+      ...job,
+      salary: {
+        min: job.salary.min.toString(),
+        max: job.salary.max.toString(),
+        currency: job.salary.currency
+      },
+      requirements: Array.isArray(job.requirements) ? job.requirements : [],
+      benefits: Array.isArray(job.benefits) ? job.benefits : [],
+      numberOfPositions: job.numberOfPositions.toString(),
+      applicationDeadline: new Date(job.applicationDeadline)
+    });
     setEditModalVisible(true);
   };
 
   const handleUpdateJob = async () => {
     try {
-      await updateJob(editJobData._id, editJobData);
+      const updatedJobData = {
+        ...editJobData,
+        salary: {
+          min: parseInt(editJobData.salary.min),
+          max: parseInt(editJobData.salary.max),
+          currency: editJobData.salary.currency
+        },
+        numberOfPositions: parseInt(editJobData.numberOfPositions),
+        requirements: Array.isArray(editJobData.requirements) 
+          ? editJobData.requirements 
+          : editJobData.requirements.split(',').map(item => item.trim()),
+        benefits: Array.isArray(editJobData.benefits)
+          ? editJobData.benefits
+          : editJobData.benefits.split(',').map(item => item.trim())
+      };
+      await updateJob(editJobData._id, updatedJobData);
       setEditModalVisible(false);
       fetchPostedJobs();
       Alert.alert('Success', 'Job updated successfully');
     } catch (error) {
+      console.error('Error updating job:', error);
       Alert.alert('Error', 'Failed to update job');
     }
+  };
+
+
+  const onChangeDate = (event, selectedDate) => {
+    const currentDate = selectedDate || editJobData.applicationDeadline;
+    setShowDatePicker(Platform.OS === 'ios');
+    setEditJobData({ ...editJobData, applicationDeadline: currentDate });
   };
 
   const handleDeleteJob = async (jobId) => {
@@ -213,40 +267,122 @@ const ManageCandidatesScreen = ({ navigation }) => {
         visible={editModalVisible}
         onRequestClose={() => setEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Job</Text>
-            <TextInput
-              style={styles.input}
-              value={editJobData.title}
-              onChangeText={(text) => setEditJobData({...editJobData, title: text})}
-              placeholder="Job Title"
-            />
-            <TextInput
-              style={styles.input}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                <Text style={styles.modalTitle}>Edit Job</Text>
+                <JobInput
+                  label="Job Title"
+                  value={editJobData.title}
+                  onChangeText={(text) => setEditJobData({...editJobData, title: text})}
+                />
+            <JobInput
+              label="Company"
               value={editJobData.company}
               onChangeText={(text) => setEditJobData({...editJobData, company: text})}
-              placeholder="Company"
             />
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
+            <JobInput
+              label="Description"
               value={editJobData.description}
               onChangeText={(text) => setEditJobData({...editJobData, description: text})}
-              placeholder="Description"
               multiline
             />
+            <JobInput
+              label="Requirements (comma separated)"
+              value={Array.isArray(editJobData.requirements) ? editJobData.requirements.join(', ') : ''}
+              onChangeText={(text) => setEditJobData({...editJobData, requirements: text.split(',').map(item => item.trim())})}
+              multiline
+            />
+            <JobInput
+              label="Benefits (comma separated)"
+              value={Array.isArray(editJobData.benefits) ? editJobData.benefits.join(', ') : ''}
+              onChangeText={(text) => setEditJobData({...editJobData, benefits: text.split(',').map(item => item.trim())})}
+              multiline
+            />
+            <View style={styles.salaryContainer}>
+              <JobInput
+                label="Min Salary"
+                value={editJobData.salary.min}
+                onChangeText={(text) => setEditJobData({...editJobData, salary: {...editJobData.salary, min: text}})}
+                keyboardType="numeric"
+                style={styles.salaryInput}
+              />
+              <JobInput
+                label="Max Salary"
+                value={editJobData.salary.max}
+                onChangeText={(text) => setEditJobData({...editJobData, salary: {...editJobData.salary, max: text}})}
+                keyboardType="numeric"
+                style={styles.salaryInput}
+              />
+            </View>
+              <JobInput
+                label="Location"
+                value={editJobData.location}
+                onChangeText={(text) => setEditJobData({...editJobData, location: text})}
+              />
+              <JobInput
+                label="Job Type"
+                value={editJobData.type}
+                onChangeText={(text) => setEditJobData({...editJobData, type: text})}
+              />
+              <JobInput
+                label="Industry"
+                value={editJobData.industry}
+                onChangeText={(text) => setEditJobData({...editJobData, industry: text})}
+              />
+              <JobInput
+                label="Number of Positions"
+                value={editJobData.numberOfPositions}
+                onChangeText={(text) => setEditJobData({...editJobData, numberOfPositions: text})}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <JobInput
+                  label="Application Deadline"
+                  value={editJobData.applicationDeadline.toDateString()}
+                  editable={false}
+                />
+              </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={editJobData.applicationDeadline}
+                mode="date"
+                display="default"
+                onChange={onChangeDate}
+              />
+            )}
             <TouchableOpacity style={styles.updateButton} onPress={handleUpdateJob}>
               <Text style={styles.buttonText}>Update Job</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelButton} onPress={() => setEditModalVisible(false)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 };
+
+const JobInput = ({ label, value, onChangeText, multiline, keyboardType, style, editable }) => (
+  <View style={[styles.inputContainer, style]}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={[styles.input, multiline && styles.multilineInput]}
+      value={value}
+      onChangeText={onChangeText}
+      multiline={multiline}
+      keyboardType={keyboardType || 'default'}
+      editable={editable !== false}
+    />
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -439,6 +575,65 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxHeight: '90%',
+  },
+  inputContainer: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 16,
+    color: '#4B5563',
+    marginBottom: 5,
+  },
+  input: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  multilineInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  salaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  salaryInput: {
+    flex: 1,
+    marginRight: 10,
+  },
+
+  modalContainer: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%', // Adjust this value as needed
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#6D28D9',
+    textAlign: 'center',
   },
 });
 
