@@ -1,16 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   View, 
-  ScrollView, 
   TouchableOpacity, 
   StyleSheet, 
   Text, 
   TextInput,
   FlatList,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
+
+const SearchInput = React.memo(({ icon, placeholder, value, onChangeText, onSubmitEditing }) => (
+  <View style={styles.inputContainer}>
+    <Ionicons name={icon} size={24} color="#6D28D9" style={styles.icon} />
+    <TextInput
+      style={styles.input}
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChangeText}
+      onSubmitEditing={onSubmitEditing}
+      returnKeyType="next"
+    />
+  </View>
+));
 
 const JobSearchScreen = ({ navigation }) => {
   const { state } = useAppContext();
@@ -20,13 +36,14 @@ const JobSearchScreen = ({ navigation }) => {
     jobType: '',
   });
   const [searchResults, setSearchResults] = useState([]);
+  const flatListRef = useRef(null);
 
-  useEffect(() => {
-    // Perform initial search with empty params to show all jobs
-    handleSearch();
+  const updateSearchParams = useCallback((key, value) => {
+    setSearchParams(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
+    Keyboard.dismiss();
     const filteredJobs = state.jobs.filter(job => {
       const keywordMatch = job.title.toLowerCase().includes(searchParams.keyword.toLowerCase()) ||
                            job.company.toLowerCase().includes(searchParams.keyword.toLowerCase());
@@ -41,9 +58,18 @@ const JobSearchScreen = ({ navigation }) => {
     if (filteredJobs.length === 0) {
       Alert.alert('No Results', 'No jobs found matching your criteria');
     }
-  };
 
-  const renderJobItem = ({ item }) => (
+    // Scroll to top of results
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [searchParams, state.jobs]);
+
+  useEffect(() => {
+    handleSearch();
+  }, []); 
+
+  const renderJobItem = useCallback(({ item }) => (
     <TouchableOpacity 
       style={styles.jobItem} 
       onPress={() => navigation.navigate('JobDetails', { job: item })}
@@ -53,67 +79,69 @@ const JobSearchScreen = ({ navigation }) => {
       <Text style={styles.jobLocation}>{item.location}</Text>
       <Text style={styles.jobType}>{item.type}</Text>
     </TouchableOpacity>
-  );
+  ), [navigation]);
+
+  const ListHeaderComponent = useMemo(() => (
+    <>
+      <Text style={styles.title}>Find Your Dream Job</Text>
+      <View style={styles.searchContainer}>
+        <SearchInput
+          icon="search-outline"
+          placeholder="Job title or keywords"
+          value={searchParams.keyword}
+          onChangeText={(text) => updateSearchParams('keyword', text)}
+          onSubmitEditing={() => {}}
+        />
+        <SearchInput
+          icon="location-outline"
+          placeholder="Location"
+          value={searchParams.location}
+          onChangeText={(text) => updateSearchParams('location', text)}
+          onSubmitEditing={() => {}}
+        />
+        <SearchInput
+          icon="briefcase-outline"
+          placeholder="Job Type (e.g., Full-time, Part-time)"
+          value={searchParams.jobType}
+          onChangeText={(text) => updateSearchParams('jobType', text)}
+          onSubmitEditing={handleSearch}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+          <Text style={styles.searchButtonText}>Search Jobs</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.resultsTitle}>Search Results ({searchResults.length})</Text>
+    </>
+  ), [searchParams, updateSearchParams, handleSearch, searchResults.length]);
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <Text style={styles.title}>Find Your Dream Job</Text>
-        <View style={styles.searchContainer}>
-          <SearchInput
-            icon="search-outline"
-            placeholder="Job title or keywords"
-            value={searchParams.keyword}
-            onChangeText={(text) => setSearchParams({ ...searchParams, keyword: text })}
-          />
-          <SearchInput
-            icon="location-outline"
-            placeholder="Location"
-            value={searchParams.location}
-            onChangeText={(text) => setSearchParams({ ...searchParams, location: text })}
-          />
-          <SearchInput
-            icon="briefcase-outline"
-            placeholder="Job Type (e.g., Full-time, Part-time)"
-            value={searchParams.jobType}
-            onChangeText={(text) => setSearchParams({ ...searchParams, jobType: text })}
-          />
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Text style={styles.searchButtonText}>Search Jobs</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <Text style={styles.resultsTitle}>Search Results ({searchResults.length})</Text>
-        <FlatList
-          data={searchResults}
-          renderItem={renderJobItem}
-          keyExtractor={(item) => item._id}
-          style={styles.jobList}
-          ListEmptyComponent={<Text style={styles.noResults}>No jobs found</Text>}
-        />
-      </ScrollView>
-    </View>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <FlatList
+        ref={flatListRef}
+        data={searchResults}
+        renderItem={renderJobItem}
+        keyExtractor={(item) => item._id}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={<Text style={styles.noResults}>No jobs found</Text>}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
+      />
+    </KeyboardAvoidingView>
   );
 };
 
-const SearchInput = ({ icon, placeholder, value, onChangeText }) => (
-  <View style={styles.inputContainer}>
-    <Ionicons name={icon} size={24} color="#6D28D9" style={styles.icon} />
-    <TextInput
-      style={styles.input}
-      placeholder={placeholder}
-      value={value}
-      onChangeText={onChangeText}
-    />
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
-  scrollViewContent: {
+  listContent: {
     padding: 20,
   },
   title: {
@@ -170,9 +198,6 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     marginTop: 20,
     marginBottom: 10,
-  },
-  jobList: {
-    marginTop: 10,
   },
   jobItem: {
     backgroundColor: '#FFFFFF',
