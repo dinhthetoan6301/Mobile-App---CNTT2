@@ -1,6 +1,6 @@
 How to run code:
 
-Step 1: Install Nodejs, Android Studio, Expo CLI, Metro.
+Step 1: Install Nodejs, Android Studio, Expo CLI, Metro, SDK.
 
 
 Step 2: Open Android Studio and install 1 android emulator.
