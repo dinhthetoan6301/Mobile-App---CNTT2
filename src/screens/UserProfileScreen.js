@@ -10,8 +10,10 @@ import {
 import { getUserProfile, updateUserProfile } from '../api/api';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppContext } from '../context/AppContext'; 
 
 const UserProfileScreen = ({ navigation }) => {
+  const { state } = useAppContext(); 
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -99,13 +101,17 @@ const UserProfileScreen = ({ navigation }) => {
             </Picker>
           </View>
         </View>
+
+        {state.user && state.user.role === 'jobseeker' && (
+          <TouchableOpacity 
+            style={styles.manageCVsButton} 
+            onPress={() => navigation.navigate('ManageCVs')}>
+            <Text style={styles.manageCVsButtonText}>Manage My CVs</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
           <Text style={styles.updateButtonText}>Update Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.manageCVsButton} 
-          onPress={() => navigation.navigate('ManageCVs')}>
-          <Text style={styles.manageCVsButtonText}>Manage My CVs</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
