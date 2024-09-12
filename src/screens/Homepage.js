@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
-import { TouchableOpacity, FlatList, View, Text, Alert } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { TouchableOpacity, FlatList, View, Text, Alert, StyleSheet } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getJobs } from '../api/api';
+import { getJobs } from '../api/api'; // API giả sử lấy dữ liệu công việc
 import { useAppContext } from '../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { debounce } from 'lodash'; 
 import {
   HomeContainer,
   Header,
@@ -54,9 +55,23 @@ const Homepage = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchJobs();
-    }, [fetchJobs])
+      if (searchTerm === '' && selectedJobType === 'All') {
+        fetchJobs();
+      }
+    }, [fetchJobs, searchTerm, selectedJobType])
   );
+
+  const debounceSearch = useCallback(
+    debounce(() => {
+      handleSearch();
+    }, 300),
+    [searchTerm, allJobs]
+  );
+
+  useEffect(() => {
+    debounceSearch();
+    return debounceSearch.cancel;
+  }, [searchTerm, debounceSearch]);
 
   const handleSearch = useCallback(() => {
     if (searchTerm.trim() === '') {
@@ -68,12 +83,6 @@ const Homepage = () => {
       dispatch({ type: 'SET_JOBS', payload: filteredJobs });
     }
   }, [searchTerm, allJobs, dispatch]);
-
-  useFocusEffect(
-    useCallback(() => {
-      handleSearch();
-    }, [handleSearch])
-  );
 
   const handleAvatarPress = () => {
     setShowMenu(!showMenu);
@@ -133,6 +142,9 @@ const Homepage = () => {
         <JobTitle>{item.title}</JobTitle>
         <JobCompany>{item.company}</JobCompany>
         <Text>{item.type}</Text>
+        <Text style={styles.jobSalary}>
+          Salary: {item.salary?.min} - {item.salary?.max} {item.salary?.currency || 'USD'}
+        </Text>
       </JobItem>
     </TouchableOpacity>
   );
@@ -209,6 +221,8 @@ const Homepage = () => {
           data={state.jobs.filter(job => selectedJobType === 'All' || job.type === selectedJobType)}
           renderItem={renderJobItem}
           keyExtractor={(item) => item._id}
+          initialNumToRender={10}
+          windowSize={5} 
         />
       )}
       {state.user && state.user.role === 'employer' && (
@@ -218,14 +232,21 @@ const Homepage = () => {
       )}
       
       {state.user && state.user.role === 'jobseeker' && (
-        <>
-          <StyledButton onPress={() => navigation.navigate('JobSearch', { jobType: selectedJobType })}>
-            <ButtonText>Search Jobs</ButtonText>
-          </StyledButton>
-        </>
+        <StyledButton onPress={() => navigation.navigate('JobSearch', { jobType: selectedJobType })}>
+          <ButtonText>Search Jobs</ButtonText>
+        </StyledButton>
       )}
     </HomeContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  jobSalary: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#28A745', 
+    marginBottom: 5,
+  },
+});
 
 export default Homepage;

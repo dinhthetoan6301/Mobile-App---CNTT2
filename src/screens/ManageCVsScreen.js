@@ -54,7 +54,40 @@ const ManageCVsScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
-  
+
+  const handleDeleteCV = async (cvId) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this CV?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const response = await deleteCV(cvId);
+              if (response.success) {
+                Alert.alert('Success', 'CV deleted successfully');
+                fetchCVs();
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete CV');
+              }
+            } catch (error) {
+              console.error('Error in handleDeleteCV:', error);
+              Alert.alert('Error', 'Failed to delete CV: ' + error.message);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderCVItem = ({ item }) => (
     <View style={styles.cvItem}>
       <Text style={styles.cvName}>{item.name}</Text>

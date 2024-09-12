@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
+import { Picker } from '@react-native-picker/picker';
 
 const SearchInput = React.memo(({ icon, placeholder, value, onChangeText, onSubmitEditing }) => (
   <View style={styles.inputContainer}>
@@ -34,6 +35,7 @@ const JobSearchScreen = ({ navigation }) => {
     keyword: '',
     location: '',
     jobType: '',
+    salary: { min: '', max: '' },
   });
   const [searchResults, setSearchResults] = useState([]);
   const flatListRef = useRef(null);
@@ -44,21 +46,30 @@ const JobSearchScreen = ({ navigation }) => {
 
   const handleSearch = useCallback(() => {
     Keyboard.dismiss();
+  
     const filteredJobs = state.jobs.filter(job => {
       const keywordMatch = job.title.toLowerCase().includes(searchParams.keyword.toLowerCase()) ||
                            job.company.toLowerCase().includes(searchParams.keyword.toLowerCase());
       const locationMatch = job.location.toLowerCase().includes(searchParams.location.toLowerCase());
       const jobTypeMatch = job.type.toLowerCase().includes(searchParams.jobType.toLowerCase());
-
-      return keywordMatch && locationMatch && jobTypeMatch;
+  
+      // Ensure salary values are numbers for comparison
+      const jobMinSalary = parseFloat(job.salary?.min) || 0;
+      const jobMaxSalary = parseFloat(job.salary?.max) || Infinity;
+      const minSalary = parseFloat(searchParams.salary.min) || 0;
+      const maxSalary = parseFloat(searchParams.salary.max) || Infinity;
+  
+      const salaryMatch = jobMinSalary >= minSalary && jobMaxSalary <= maxSalary;
+  
+      return keywordMatch && locationMatch && jobTypeMatch && salaryMatch;
     });
-
+  
     setSearchResults(filteredJobs);
-
+  
     if (filteredJobs.length === 0) {
       Alert.alert('No Results', 'No jobs found matching your criteria');
     }
-
+  
     // Scroll to top of results
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
@@ -78,6 +89,9 @@ const JobSearchScreen = ({ navigation }) => {
       <Text style={styles.jobCompany}>{item.company}</Text>
       <Text style={styles.jobLocation}>{item.location}</Text>
       <Text style={styles.jobType}>{item.type}</Text>
+      <Text style={styles.jobSalary}>
+          Salary: {item.salary?.min} - {item.salary?.max} USD
+      </Text>
     </TouchableOpacity>
   ), [navigation]);
 
@@ -99,13 +113,37 @@ const JobSearchScreen = ({ navigation }) => {
           onChangeText={(text) => updateSearchParams('location', text)}
           onSubmitEditing={() => {}}
         />
-        <SearchInput
-          icon="briefcase-outline"
-          placeholder="Job Type (e.g., Full-time, Part-time)"
-          value={searchParams.jobType}
-          onChangeText={(text) => updateSearchParams('jobType', text)}
-          onSubmitEditing={handleSearch}
-        />
+        <View style={styles.pickerContainer}>
+          <Text style={styles.pickerLabel}>Job Type</Text>
+          <Picker
+            selectedValue={searchParams.jobType}
+            style={styles.picker}
+            onValueChange={(itemValue) => updateSearchParams('jobType', itemValue)}
+          >
+            <Picker.Item label="Select Job Type" value="" />
+            <Picker.Item label="Full-time" value="Full-time" />
+            <Picker.Item label="Part-time" value="Part-time" />
+            <Picker.Item label="Internship" value="Internship" />
+            <Picker.Item label="Freelance" value="Freelance" />
+          </Picker>
+        </View>
+        <View style={styles.salaryContainer}>
+          <Text style={styles.pickerLabel}>Salary</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Min Salary"
+            keyboardType="numeric"
+            value={searchParams.salary.min}
+            onChangeText={(text) => updateSearchParams('salary', { ...searchParams.salary, min: text })}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Max Salary"
+            keyboardType="numeric"
+            value={searchParams.salary.max}
+            onChangeText={(text) => updateSearchParams('salary', { ...searchParams.salary, max: text })}
+          />
+        </View>
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
           <Text style={styles.searchButtonText}>Search Jobs</Text>
         </TouchableOpacity>
@@ -134,7 +172,6 @@ const JobSearchScreen = ({ navigation }) => {
     </KeyboardAvoidingView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -237,6 +274,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#4B5563',
     marginTop: 20,
+  },
+  pickerContainer: {
+    marginBottom: 15,
+  },
+  pickerLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6D28D9',
+    marginBottom: 10,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  salaryContainer: {
+    marginBottom: 15,
+  },
+  jobSalary: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#28A745', 
+    marginBottom: 5,
   },
 });
 

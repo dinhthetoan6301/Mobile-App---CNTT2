@@ -17,6 +17,7 @@ import PostJobScreen from '../src/screens/PostJobScreen';
 import JobDetailsScreen from '../src/screens/JobDetailsScreen';
 import RoleSelectionScreen from '../src/screens/RoleSelectionScreen';
 import ManageCVsScreen from '../src/screens/ManageCVsScreen';
+import ViewCVScreen from '../src/screens/ViewCVScreen'; // Đảm bảo import đúng
 
 const Stack = createNativeStackNavigator();
 
@@ -58,6 +59,7 @@ const RootStack = () => {
         <Stack.Screen name="PostJob" component={PostJobScreen} />
         <Stack.Screen name="JobDetails" component={JobDetailsScreen} />
         <Stack.Screen name="ManageCVs" component={ManageCVsScreen} />
+        <Stack.Screen name="ViewCV" component={ViewCVScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

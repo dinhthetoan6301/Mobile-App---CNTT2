@@ -1,16 +1,21 @@
 How to run code:
 
-
-Step 1: Open Terminal 
-
-
-Step 2: type command: npm install
+Step 1: Install Nodejs, Android Studio, Expo CLI, Metro, SDK.
 
 
-Step 3: type command: npm start
+Step 2: Open Android Studio and install 1 android emulator.
 
 
-Step 4: Press a to run android mode (must install android studio and create an android emulator)
+Step 3: Open Terminal.
 
 
-Step 5: Done!
+Step 4: type command: npm install.
+
+
+Step 5: type command: npm start.
+
+
+Step 6: Press a to run android mode.
+
+
+Done.

@@ -13,6 +13,7 @@ import { postJob } from '../api/api';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
+import { Picker } from '@react-native-picker/picker'; 
 
 const PostJobScreen = () => {
   const navigation = useNavigation();
@@ -24,7 +25,7 @@ const PostJobScreen = () => {
     benefits: '',
     salary: { min: '', max: '', currency: 'USD' },
     location: '',
-    type: '',
+    type: 'Full-time', 
     industry: '',
     applicationDeadline: new Date(),
     numberOfPositions: ''
@@ -38,7 +39,6 @@ const PostJobScreen = () => {
         numberOfPositions: parseInt(jobData.numberOfPositions) || 1,
       });
       Alert.alert('Success', 'Job posted successfully');
-      // Navigate back to Homepage and pass a parameter to trigger reload
       navigation.navigate('Homepage', { reload: true });
     } catch (error) {
       Alert.alert('Error', 'Failed to post job');
@@ -124,12 +124,21 @@ const PostJobScreen = () => {
             onChangeText={(text) => setJobData({ ...jobData, location: text })}
             placeholder="Location"
           />
-          <JobInput
-            icon="time-outline"
-            value={jobData.type}
-            onChangeText={(text) => setJobData({ ...jobData, type: text })}
-            placeholder="Job Type (e.g., Full-time, Part-time)"
-          />
+          
+       
+          <View style={styles.inputContainer}>
+            <Ionicons name="briefcase-outline" size={24} color="#6D28D9" style={styles.icon} />
+            <Picker
+              selectedValue={jobData.type}
+              style={styles.picker}
+              onValueChange={(itemValue) => setJobData({ ...jobData, type: itemValue })}
+            >
+              <Picker.Item label="Full-time" value="Full-time" />
+              <Picker.Item label="Part-time" value="Part-time" />
+              <Picker.Item label="Internship" value="Internship" />
+            </Picker>
+          </View>
+          
           <JobInput
             icon="business-outline"
             value={jobData.industry}
@@ -220,6 +229,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 10,
+    color: '#1F2937',
+  },
+  picker: {
+    flex: 1,
     color: '#1F2937',
   },
   multilineInput: {

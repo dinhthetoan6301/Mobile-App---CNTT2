@@ -62,9 +62,12 @@ const JobDetailsScreen = ({ route, navigation }) => {
           <BulletList items={job.benefits} />
         </Section>
         
-        <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-          <Text style={styles.applyButtonText}>Apply for this Job</Text>
-        </TouchableOpacity>
+        {/* Only show Apply button if user is a jobseeker */}
+        {state.user && state.user.role === 'jobseeker' && (
+          <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
+            <Text style={styles.applyButtonText}>Apply for this Job</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
